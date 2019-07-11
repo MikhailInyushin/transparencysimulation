@@ -1,0 +1,54 @@
+<html>
+
+<head>
+    <title>Transparent Spheres Demo</title>
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="container-fluid">
+        <div class="row">
+        <div class="col-md-2"> 
+            <p>n1 <input id="n1" value="1" type="text" onkeyup="window.n1 = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
+            <p>n2 <input id="n2" value = "1.33" type="text" onkeyup="window.n2 = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
+            <!-- <p>Light position <input id="n2" value = "1.6" type="range" min="0" max="6.282" step="0.1" onchange="window.pos = parseFloat(this.value); window.updatePointCoordinates(); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p> -->
+            <p>Angle <input id="n2" value = "0.5" type="range" min="-1" max="1" step="0.02" onchange="window.angleShift = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
+            
+        </div>
+        <div class="col-md-10">            
+            <canvas id="my-canvas" width="700" height="700"></canvas>
+        </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/systemjs/0.21.4/system.js"></script>
+    <script src="./compiled/bundle.js"></script>
+    <script>
+        window.n1 = 1;
+        window.n2 = 1.33;
+        window.pos = 1.6;
+        window.ptX = 0;
+        window.ptY = 7;
+        window.angleShift = 0.5;
+       
+
+        System.import('app').then(function(app){
+            app.updateCanvas(1, 1.33, window.ptX, window.ptY);
+        });
+
+        
+    </script>
+
+</body>
+
+</html>
