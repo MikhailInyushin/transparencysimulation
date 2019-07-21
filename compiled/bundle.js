@@ -461,10 +461,13 @@ System.register("classes/circle", ["classes/vec2", "classes/point", "classes/lin
                     this.y0 = y0;
                     this.r = r;
                 }
-                Circle.prototype.draw = function (ctx) {
+                Circle.prototype.draw = function (ctx, fillColor) {
+                    if (fillColor === void 0) { fillColor = '#000000FF'; }
                     ctx.beginPath();
                     ctx.strokeStyle = 'red';
                     ctx.arc(this.x0, this.y0, this.r, 0, 2 * Math.PI);
+                    ctx.fillStyle = fillColor;
+                    ctx.fill();
                     ctx.stroke();
                 };
                 Circle.prototype.getTangentAtPoint = function (pt) {
@@ -706,44 +709,158 @@ System.register("tools", [], function (exports_6, context_6) {
         }
     };
 });
-System.register("app", ["classes/vec2", "classes/point", "classes/line", "classes/circle", "tools"], function (exports_7, context_7) {
+System.register("classes/cell", ["classes/vec2", "classes/circle", "classes/point", "classes/line"], function (exports_7, context_7) {
     "use strict";
-    var vec2_5, Point_3, line_2, circle_1, tools;
+    var vec2_5, circle_1, Point_3, line_2, Cell;
     var __moduleName = context_7 && context_7.id;
+    return {
+        setters: [
+            function (vec2_5_1) {
+                vec2_5 = vec2_5_1;
+            },
+            function (circle_1_1) {
+                circle_1 = circle_1_1;
+            },
+            function (Point_3_1) {
+                Point_3 = Point_3_1;
+            },
+            function (line_2_1) {
+                line_2 = line_2_1;
+            }
+        ],
+        execute: function () {
+            Cell = (function () {
+                function Cell(x0, y0, r) {
+                    this.x0 = x0;
+                    this.y0 = y0;
+                    this.r = r;
+                    this.outerCircle = new circle_1.Circle(x0, y0, r);
+                    this.innerCircles = [];
+                    for (var i = 4.1; i < 18; i = i + 3) {
+                        var startingAngle = Math.random() * Math.PI * 2;
+                        for (var angle = startingAngle; angle < Math.PI * 2 + startingAngle; angle += Math.PI * 2 / 10) {
+                            var x = r / 20 * i * Math.cos(angle) + x0;
+                            var y = r / 20 * i * Math.sin(angle) + y0;
+                            this.innerCircles.push(new circle_1.Circle(x, y, r / 300.0 * i));
+                        }
+                    }
+                }
+                Cell.prototype.draw = function (ctx) {
+                    this.outerCircle.draw(ctx, '#00FF0011');
+                    for (var _i = 0, _a = this.innerCircles; _i < _a.length; _i++) {
+                        var c = _a[_i];
+                        c.draw(ctx, '#FFFF0022');
+                    }
+                };
+                Cell.prototype.intersectWith = function (lightPoint, lightDirection, nWater, nCell, nMitochondria) {
+                    var line = line_2.Line.createFromVector(lightPoint, lightDirection);
+                    var intersections = line.intersectionsWith(this.outerCircle);
+                    var innerIntersections = [];
+                    if (intersections.length == 2
+                        && vec2_5.vec2.dot(lightPoint.vectorTo(intersections[0]), lightDirection) >= 0) {
+                        var firstIntersection = this.outerCircle.intersectWith(lightPoint, lightDirection, nWater, nCell);
+                        innerIntersections.push(firstIntersection.incomingPoint);
+                        lightPoint = firstIntersection.incomingPoint;
+                        lightDirection = firstIntersection.incomingPoint.vectorTo(firstIntersection.outgoingLightSource);
+                        while (true) {
+                            var closestCircles = this.innerCircles
+                                .filter(function (circle) { return Math.sqrt((circle.x0 - lightPoint.x) * (circle.x0 - lightPoint.x) + (circle.y0 - lightPoint.y) * (circle.y0 - lightPoint.y)) > circle.r * 1.02; })
+                                .sort(function (circle1, circle2) {
+                                var distanceToCirle1 = Math.sqrt((circle1.x0 - lightPoint.x) * (circle1.x0 - lightPoint.x) + (circle1.y0 - lightPoint.y) * (circle1.y0 - lightPoint.y));
+                                var distanceToCirle2 = Math.sqrt((circle2.x0 - lightPoint.x) * (circle2.x0 - lightPoint.x) + (circle2.y0 - lightPoint.y) * (circle2.y0 - lightPoint.y));
+                                if (distanceToCirle1 < distanceToCirle2)
+                                    return -1;
+                                if (distanceToCirle1 > distanceToCirle2)
+                                    return 1;
+                                else
+                                    return 0;
+                            });
+                            var intersectionsFound = false;
+                            for (var _i = 0, closestCircles_1 = closestCircles; _i < closestCircles_1.length; _i++) {
+                                var circle = closestCircles_1[_i];
+                                var intersectionResult = circle.intersectWith(lightPoint, lightDirection, nCell, nMitochondria);
+                                if (intersectionResult != null) {
+                                    intersectionsFound = true;
+                                    innerIntersections.push(intersectionResult.incomingPoint);
+                                    innerIntersections.push(intersectionResult.outgoingLightSource);
+                                    lightPoint = intersectionResult.outgoingLightSource;
+                                    lightDirection = intersectionResult.outgoingLightDirection;
+                                    continue;
+                                }
+                            }
+                            if (!intersectionsFound) {
+                                var lineFromLastMitopchondriaToCell = line_2.Line.createFromVector(lightPoint, lightDirection);
+                                var cellOutIntersections = lineFromLastMitopchondriaToCell.intersectionsWith(this.outerCircle);
+                                var cellOutIntersection = cellOutIntersections.filter(function (intersection) {
+                                    return vec2_5.vec2.dot(lightPoint.vectorTo(intersection), lightDirection) > 0.0001;
+                                })[0];
+                                if (cellOutIntersection) {
+                                    var n = new Point_3.Point(this.x0, this.y0).vectorTo(cellOutIntersection).normalize().negate();
+                                    var l = lightPoint.vectorTo(cellOutIntersection).normalize();
+                                    var cosAngle1 = -vec2_5.vec2.dot(n, l);
+                                    var cosAngle2 = Math.sqrt(1 - (nCell / nWater) * (nCell / nWater) * (1 - cosAngle1 * cosAngle1));
+                                    var refract = l.scale(nCell / nWater).add(n.scale(nCell / nWater * cosAngle1 - cosAngle2)).normalize();
+                                    innerIntersections.push(cellOutIntersection);
+                                    return {
+                                        innerIntersections: innerIntersections,
+                                        outgoingLightDirection: refract,
+                                    };
+                                }
+                                else
+                                    return null;
+                            }
+                        }
+                    }
+                    return null;
+                };
+                return Cell;
+            }());
+            exports_7("Cell", Cell);
+        }
+    };
+});
+System.register("app", ["classes/vec2", "classes/point", "classes/line", "tools", "classes/cell"], function (exports_8, context_8) {
+    "use strict";
+    var vec2_6, Point_4, line_3, tools, cell_1, cells, cell;
+    var __moduleName = context_8 && context_8.id;
     function updatePointCoordinates() {
         window.ptX = 2 * Math.cos(window.pos);
         window.ptY = 2 * Math.sin(window.pos);
     }
-    exports_7("updatePointCoordinates", updatePointCoordinates);
-    function updateCanvas(n1, n2, ptX, ptY) {
+    exports_8("updatePointCoordinates", updatePointCoordinates);
+    function updateCanvas(draw) {
+        if (draw === void 0) { draw = true; }
+        var n1 = window.n1, n2 = window.n2, n3 = window.n3, ptX = window.ptX, ptY = window.ptY;
+        var ySensor = -27, xSensorStart = 0, xSensorEnd = 20;
+        var sensorLightsCatched = 0;
         var canvas = document.getElementById("my-canvas");
         var ctx = canvas.getContext("2d");
-        tools.drawAxes();
+        if (draw)
+            tools.drawAxes();
+        var cells = window.cells;
+        if (draw) {
+            for (var _i = 0, cells_1 = cells; _i < cells_1.length; _i++) {
+                var cell_2 = cells_1[_i];
+                cell_2.draw(ctx);
+            }
+        }
         var lightPoints = [];
-        for (var x = 0; x < 40; x++) {
-            var lightPoint = new Point_3.Point(ptX + x * 0.61, ptY);
+        for (var x = 0; x < 100; x++) {
+            var lightPoint = new Point_4.Point(ptX + x * 0.21, ptY);
             lightPoints.push(lightPoint);
         }
         var ptLightX = 0.5 * Math.cos(window.pos + window.angleShift);
         var ptLightY = 0.5 * Math.sin(window.pos + window.angleShift);
-        var lightDirectionStatic = new vec2_5.vec2([ptLightX - ptX, ptLightY - ptY]);
-        var circles = [];
-        for (var x = 0; x < 20; x++) {
-            for (var y = 0; y < 20; y++) {
-                var c = new circle_1.Circle(x * 1.25 + (y % 2) * 0.33, -y * 1.25, 0.5);
-                circles.push(c);
-                c.draw(ctx);
-            }
-        }
+        var lightDirectionStatic = new vec2_6.vec2([ptLightX - ptX, ptLightY - ptY]);
         var _loop_1 = function (lightPointStatic) {
             var lightPoint = lightPointStatic;
             var lightDirection = lightDirectionStatic;
             while (true) {
-                var closestCircles = circles
-                    .filter(function (circle) { return Math.sqrt((circle.x0 - lightPoint.x) * (circle.x0 - lightPoint.x) + (circle.y0 - lightPoint.y) * (circle.y0 - lightPoint.y)) > circle.r * 1.02; })
-                    .sort(function (circle1, circle2) {
-                    var distanceToCirle1 = Math.sqrt((circle1.x0 - lightPoint.x) * (circle1.x0 - lightPoint.x) + (circle1.y0 - lightPoint.y) * (circle1.y0 - lightPoint.y));
-                    var distanceToCirle2 = Math.sqrt((circle2.x0 - lightPoint.x) * (circle2.x0 - lightPoint.x) + (circle2.y0 - lightPoint.y) * (circle2.y0 - lightPoint.y));
+                var closestCells = cells
+                    .filter(function (cell) { return Math.sqrt((cell.x0 - lightPoint.x) * (cell.x0 - lightPoint.x) + (cell.y0 - lightPoint.y) * (cell.y0 - lightPoint.y)) > cell.r * 1.02; })
+                    .sort(function (cell1, cell2) {
+                    var distanceToCirle1 = Math.sqrt((cell1.x0 - lightPoint.x) * (cell1.x0 - lightPoint.x) + (cell1.y0 - lightPoint.y) * (cell1.y0 - lightPoint.y));
+                    var distanceToCirle2 = Math.sqrt((cell2.x0 - lightPoint.x) * (cell2.x0 - lightPoint.x) + (cell2.y0 - lightPoint.y) * (cell2.y0 - lightPoint.y));
                     if (distanceToCirle1 < distanceToCirle2)
                         return -1;
                     if (distanceToCirle1 > distanceToCirle2)
@@ -752,51 +869,94 @@ System.register("app", ["classes/vec2", "classes/point", "classes/line", "classe
                         return 0;
                 });
                 var intersectionsFound = false;
-                for (var _i = 0, closestCircles_1 = closestCircles; _i < closestCircles_1.length; _i++) {
-                    var circle = closestCircles_1[_i];
-                    var intersectionResult = circle.intersectWith(lightPoint, lightDirection, n1, n2);
+                for (var _i = 0, closestCells_1 = closestCells; _i < closestCells_1.length; _i++) {
+                    var cell_3 = closestCells_1[_i];
+                    var intersectionResult = cell_3.intersectWith(lightPoint, lightDirection, n1, n2, n3);
                     if (intersectionResult != null) {
                         intersectionsFound = true;
-                        line_2.Line.drawLine(ctx, lightPoint, intersectionResult.incomingPoint);
-                        line_2.Line.drawLine(ctx, intersectionResult.incomingPoint, intersectionResult.outgoingLightSource);
-                        lightPoint = intersectionResult.outgoingLightSource;
+                        for (var _a = 0, _b = intersectionResult.innerIntersections; _a < _b.length; _a++) {
+                            var pt = _b[_a];
+                            if (draw)
+                                line_3.Line.drawLine(ctx, lightPoint, pt);
+                            lightPoint = pt;
+                        }
                         lightDirection = intersectionResult.outgoingLightDirection;
                         continue;
                     }
                 }
                 if (!intersectionsFound) {
-                    line_2.Line.drawLine(ctx, lightPoint, lightPoint.offset(lightDirection.normalize().scale(50)), 'red');
+                    if (draw)
+                        line_3.Line.drawLine(ctx, lightPoint, lightPoint.offset(lightDirection.normalize().scale(50)), 'red');
+                    var t = (ySensor - lightPoint.y) / lightDirection.y;
+                    var xSensor = lightPoint.x + t * lightDirection.x;
+                    if (xSensorStart < xSensor && xSensor < xSensorEnd) {
+                        sensorLightsCatched++;
+                    }
                     break;
                 }
             }
         };
-        for (var _i = 0, lightPoints_1 = lightPoints; _i < lightPoints_1.length; _i++) {
-            var lightPointStatic = lightPoints_1[_i];
+        for (var _a = 0, lightPoints_1 = lightPoints; _a < lightPoints_1.length; _a++) {
+            var lightPointStatic = lightPoints_1[_a];
             _loop_1(lightPointStatic);
         }
+        if (draw) {
+            ctx.beginPath();
+            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = 'yellow';
+            ctx.moveTo(xSensorStart, ySensor);
+            ctx.lineTo(xSensorEnd, ySensor);
+            ctx.stroke();
+            window.document.getElementById('catchedLights').innerText = 'Catched beams: ' + sensorLightsCatched.toString() + " / " + lightPoints.length.toString();
+        }
+        return sensorLightsCatched;
     }
-    exports_7("updateCanvas", updateCanvas);
+    exports_8("updateCanvas", updateCanvas);
+    function startSimulation() {
+        var experimentResult = [];
+        experimentResult.push('n1;n2;n3;result');
+        for (var nCell = 1.33; nCell < 1.55; nCell += 0.0005) {
+            window.n2 = nCell;
+            var result = updateCanvas(false);
+            var str = window.n1.toString() + ';' + window.n2.toString() + ';' + window.n3.toString() + ';' + result.toString();
+            experimentResult.push(str);
+            console.log(str);
+        }
+        window.experimentResult = experimentResult;
+        window.document.getElementById('simulationResult')
+            .innerText = experimentResult.join('<br/>');
+    }
+    exports_8("startSimulation", startSimulation);
     return {
         setters: [
-            function (vec2_5_1) {
-                vec2_5 = vec2_5_1;
+            function (vec2_6_1) {
+                vec2_6 = vec2_6_1;
             },
-            function (Point_3_1) {
-                Point_3 = Point_3_1;
+            function (Point_4_1) {
+                Point_4 = Point_4_1;
             },
-            function (line_2_1) {
-                line_2 = line_2_1;
-            },
-            function (circle_1_1) {
-                circle_1 = circle_1_1;
+            function (line_3_1) {
+                line_3 = line_3_1;
             },
             function (tools_1) {
                 tools = tools_1;
+            },
+            function (cell_1_1) {
+                cell_1 = cell_1_1;
             }
         ],
         execute: function () {
+            cells = [];
+            for (var x = 0; x < 20; x++) {
+                for (var y = 0; y < 20; y++) {
+                    cell = new cell_1.Cell(x * 1.25 + (y % 2) * 0.33, -y * 1.25, 0.5);
+                    cells.push(cell);
+                }
+            }
+            window.cells = cells;
             ;
             window.updateCanvas = updateCanvas;
+            window.startSimulation = startSimulation;
             window.updatePointCoordinates = updatePointCoordinates;
         }
     };
