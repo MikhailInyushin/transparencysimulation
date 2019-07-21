@@ -20,11 +20,14 @@
     <div id="app" class="container-fluid">
         <div class="row">
         <div class="col-md-2"> 
-            <p>n1 <input id="n1" value="1" type="text" onkeyup="window.n1 = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
-            <p>n2 <input id="n2" value = "1.33" type="text" onkeyup="window.n2 = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
-            <!-- <p>Light position <input id="n2" value = "1.6" type="range" min="0" max="6.282" step="0.1" onchange="window.pos = parseFloat(this.value); window.updatePointCoordinates(); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p> -->
-            <p>Angle <input id="n2" value = "0.5" type="range" min="-1" max="1" step="0.02" onchange="window.angleShift = parseFloat(this.value); window.updateCanvas(window.n1, window.n2, window.ptX, window.ptY);"></p>
-            
+            <p>Outer N1 <input id="n1" value="1" type="text" onkeyup="window.n1 = parseFloat(this.value); window.updateCanvas();"></p>
+            <p>Cell N2 <input id="n2" value = "1.33" type="text" onkeyup="window.n2 = parseFloat(this.value); window.updateCanvas();"></p>
+            <p>Mitochondria N3 <input id="n3" value = "1.5" type="text" onkeyup="window.n3 = parseFloat(this.value); window.updateCanvas();"></p>
+            <p>Light position <input id="lp" value = "1.6" type="range" min="0" max="6.282" step="0.1" onchange="window.pos = parseFloat(this.value); window.updatePointCoordinates(); window.updateCanvas();"></p>
+            <p>Angle <input id="ang" value = "0.5" type="range" min="-1" max="1" step="0.02" onchange="window.angleShift = parseFloat(this.value); window.updateCanvas();"></p>
+            <p id='catchedLights'></p>
+            <button onclick="startSimulation(); return false;" value="Start simulation">Start simulation</button>
+            <p id='simulationResult'></p>
         </div>
         <div class="col-md-10">            
             <canvas id="my-canvas" width="700" height="700"></canvas>
@@ -36,14 +39,15 @@
     <script>
         window.n1 = 1;
         window.n2 = 1.33;
-        window.pos = 1.6;
+        window.n3 = 1.5; 
+        window.pos = Math.PI/2;
         window.ptX = 0;
         window.ptY = 7;
         window.angleShift = 0.5;
        
 
         System.import('app').then(function(app){
-            app.updateCanvas(1, 1.33, window.ptX, window.ptY);
+            app.updateCanvas();
         });
 
         
